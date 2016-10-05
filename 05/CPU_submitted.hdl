@@ -1,0 +1,61 @@
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+
+    Not(in=instruction[15], out=ainstruction );
+    // if it's an address instruction always load. otherwise check to see
+    // if the compute instruction says load into a and use as a sel bit.
+
+    Or(a=instruction[5] ,b=ainstruction ,out=aload );
+
+    Mux16(a=instruction ,b=ALU16tomux1 ,sel=instruction[15] ,out=mux1out );
+
+    ARegister(in=mux1out ,load=aload , out=mux2in, out[0..14]=addressM, out=pcin );
+
+    
+    Mux16(a=mux2in ,b=inM ,sel=instruction[12] ,out=mux2out );
+
+    And(a=instruction[4], b=instruction[15], out=dload);
+    // load d register if it's an C instruction and it says load to D in [4]
+    DRegister(in=ALU16todregister ,load=dload ,out=dregisterout );
+
+
+    ALU(x=dregisterout ,y=mux2out ,zx=instruction[11] ,nx=instruction[10] ,zy=instruction[9] ,ny=instruction[8] ,f=instruction[7] ,no=instruction[6] ,out=outM, out=ALU16tomux1, out=ALU16todregister ,zr=iszero ,ng=isnegative);
+
+
+    // check conditionals
+    // finding greater than
+    Or(a=iszero ,b=isnegative ,out=notgreater );
+    Not(in=notgreater ,out=greater );
+
+    // if both are greater than     
+    And(a=instruction[0], b=greater, out=greaterthan);   
+
+    // if both are zero
+    And(a=instruction[1], b=iszero, out=equalzero); 
+
+    // if both negative 
+    And(a=instruction[2], b=isnegative, out=negative); 
+
+    Or(a=negative, b=equalzero, out=lessequal);
+    Or(a=lessequal, b=greaterthan, out=jump);
+    And(a=instruction[15], b=jump, out=progload); 
+
+
+
+    PC(in=pcin ,load=progload ,inc=true ,reset=reset ,out[0..14]=pc ); 
+
+    And(a=instruction[3] ,b=instruction[15] ,out=writeM );
+
+    }

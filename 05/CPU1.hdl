@@ -1,0 +1,94 @@
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+
+    Not(in=instruction[15], out=ainstruction );
+    // if it's an address instruction always load. otherwise check to see
+    // if the compute instruction says load into a and use as a sel bit.
+
+    Or(a=instruction[5] ,b=ainstruction ,out=aload );
+
+    Mux16(a=instruction ,b=ALU16tomux1 ,sel=instruction[15] ,out=mux1out );
+
+    ARegister(in=mux1out ,load=aload , out=mux2in, out[0..14]=addressM, out=pcin );
+
+    
+    Mux16(a=mux2in ,b=inM ,sel=instruction[12] ,out=mux2out );
+
+    And(a=instruction[4], b=instruction[15], out=dload);
+    // load d register if it's an C instruction and it says load to D in [4]
+    DRegister(in=ALU16todregister ,load=dload ,out=dregisterout );
+
+
+    ALU(x=dregisterout ,y=mux2out ,zx=instruction[11] ,nx=instruction[10] ,zy=instruction[9] ,ny=instruction[8] ,f=instruction[7] ,no=instruction[6] ,out=outM, out=ALU16tomux1, out=ALU16todregister ,zr=iszero ,ng=isnegative);
+
+
+    // check conditionals
+    // finding greater than
+    Or(a=iszero ,b=isnegative ,out=notgreater );
+    Not(in=notgreater ,out=greater );
+
+    // selecting j bit instruction and matching to math operations (8 total) below
+    DMux8Way(in=true ,sel=instruction[0..2] ,a=null ,b=gt ,c=eq ,d=ge ,e=lt ,f=ne ,g=le ,h=jump ); 
+
+    // null condition never jumps, just here for completion purpose 0
+    And(a=null ,b=false ,out=nullout );
+
+    // check gt condition 1
+    And(a=gt ,b=greater ,out=gtout );
+
+    // check eq condition 2
+    And(a=eq ,b=iszero ,out=eqout );
+
+    // check ge condition 3
+    Or(a=greater ,b=iszero , out=gecompare );
+    And(a=ge ,b=gecompare ,out=geout );
+
+    // check lt condition 4
+    And(a=lt ,b=isnegative ,out=ltout );
+
+    // check ne condition 5
+    Not(in=iszero ,out=ne1 );
+    And(a=ne ,b=ne1 ,out=neout );
+
+    // check le condition 6
+    Or(a=isnegative ,b=iszero , out=le1 );
+    And(a=le ,b=le1 ,out=leout );
+
+    // check jump all 1s condition condition 7
+    And(a=jump ,b=true ,out=jumpout );
+
+    // or all 8 above conditions to see if any of them are met.
+    Or8Way(in[0]=nullout, in[1]=gtout, in[2]=eqout, in[3]=geout, in[4]=ltout, in[5]=neout, in[6]=leout, in[7]=jumpout, out=match ); 
+
+
+    // make sure it's an instruction before sending to PC
+    And(a=instruction[15] ,b=match ,out=progload );
+
+
+
+    // Notes:
+    // I checked my program and the only thing I can't get right is the program counter!
+    // the issue is the logic.  The ALU gives out a negative and a zero value
+    // but the instrution set can include a value for "not zero" and greater than or
+    // equal to zero, and less than or equal to zero.  the issue is the ALU output
+    // will never have greater than zero and also less than zero - they are exclusive.
+    // so I am having trouble matching the 8 possible outputs, pg. 69, to the j values
+    // it may make sense to compare each condition separately and then OR all 8 of them.
+
+    PC(in=pcin ,load=progload ,inc=true ,reset=reset ,out[0..14]=pc ); 
+
+    And(a=instruction[3] ,b=instruction[15] ,out=writeM );
+
+    }

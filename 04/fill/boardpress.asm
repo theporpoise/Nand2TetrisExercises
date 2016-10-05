@@ -1,0 +1,10 @@
+
+(LOOP)
+
+@KBD
+D=M
+
+@SCREEN
+
+@LOOP
+0;JMP

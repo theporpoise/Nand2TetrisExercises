@@ -1,0 +1,92 @@
+I11a cccc cc d1 d2 d3 jjj
+
+d1 = a, instruction 5
+d2 = d, instruction 4
+d3 = writeM bit, instruction 3
+
+j values
+instruction[0]= >
+instruction[1]= =
+instruction[2]= <
+
+
+
+11, 10, 9, 8, 7, 6 are the six bitwise inputs to the ALU
+
+
+    first i'm gonna put everything together and connect it
+    then i'm gonna attack control bits
+    then i'm gonna check the program counter
+    finally i'll check outputs.
+
+
+    
+
+    *Decoder
+    MuxfeedsA 
+    ARegister(in= ,load= ,out= );
+    MuxPostAfeedsALU
+    DRegisterfeedsALU
+    ALU
+    *ALUjumpdecoder
+    ALUfeedsD,feedsmuxfeedsA
+    programcounterfeedsfromA,jumpdecoder
+
+
+
+
+    // for program counter will need to process the equal zero or equal negative bits
+    // coming out of the ALU and combine those with the jump bits
+    // when deciding what the program counter should do.
+    // they are the control bits for the program counter.
+    // the load function for the PC must be calcluated from ALU + jump bits
+    
+
+    // Needed:  Decode chip optional, Program counter controle calculator using AND/OR (above), 
+    // formatting of the outM so that it works with Memory, calculation of decode goes
+    // into mux for deciding on instruction if it's an address or a computation, 
+    // bunch of control bits. . . ah!
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    header:
+
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */

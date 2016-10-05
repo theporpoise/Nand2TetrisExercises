@@ -1,0 +1,93 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/CPU.hdl
+
+/**
+ * The Hack CPU (Central Processing unit), consisting of an ALU,
+ * two registers named A and D, and a program counter named PC.
+ * The CPU is designed to fetch and execute instructions written in 
+ * the Hack machine language. In particular, functions as follows:
+ * Executes the inputted instruction according to the Hack machine 
+ * language specification. The D and A in the language specification
+ * refer to CPU-resident registers, while M refers to the external
+ * memory location addressed by A, i.e. to Memory[A]. The inM input 
+ * holds the value of this location. If the current instruction needs 
+ * to write a value to M, the value is placed in outM, the address 
+ * of the target location is placed in the addressM output, and the 
+ * writeM control bit is asserted. (When writeM==0, any value may 
+ * appear in outM). The outM and writeM outputs are combinational: 
+ * they are affected instantaneously by the execution of the current 
+ * instruction. The addressM and pc outputs are clocked: although they 
+ * are affected by the execution of the current instruction, they commit 
+ * to their new values only in the next time step. If reset==1 then the 
+ * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
+ * than to the address resulting from executing the current instruction. 
+ */
+ 
+CHIP CPU {
+
+    IN  inM[16],         // M value input  (M = contents of RAM[A])
+        instruction[16], // Instruction for execution
+        reset;           // Signals whether to re-start the current
+                         // program (reset==1) or continue executing
+                         // the current program (reset==0).
+
+    OUT outM[16],        // M value output
+        writeM,          // Write to M? 
+        addressM[15],    // Address in data memory (of M)
+        pc[15];          // address of next instruction
+
+    PARTS:
+    Not(in=instruction[15] ,out=aload );
+
+    Mux16(a=instruction ,b=ALU16tomux1 ,sel=instruction[15] ,out=mux1out );
+    // will need to connect ALUtomux1 from ALU at the end
+    // pulled sel the msb of instruction.
+
+    ARegister(in=mux1out ,load=aload , out=mux2in, out[0..14]=addressM, out=pcin );
+    // A control bit comes from ddd after the ALU processes, will get it later
+    // this control bit may actually come from the instruction, let me think.
+
+    Mux16(a=mux2in ,b=inM ,sel=instruction[12] ,out=mux2out );
+    // set select to current instruction (this is a good guess at this point)
+
+    ALU(x=dregisterout ,y=mux2out ,zx=instruction[11] ,nx=instruction[10] ,zy=instruction[9] ,ny=instruction[8] ,f=instruction[7] ,no=instruction[6] ,out=outM, out=ALU16tomux1, out=ALU16todregister, out[4]=dcontrolfromALU ,zr=iszero ,ng=isnegative );
+
+    DRegister(in=ALU16todregister ,load=dcontrolfromALU ,out=dregisterout );
+
+    // got outM, writeM, and addressM.  now I need to get the program control output
+
+    // need to create load calc from iszero, isnegative, and the 3 jump bits
+
+    // finding greater than
+    Or(a=iszero ,b=isnegative ,out=notgreater );
+    Not(in=notgreater ,out=greater );
+
+    // checking if j instructions match ALU output for greater, zero, or less than.
+    And(a=instruction[0] ,b=greater ,out=greatermatch );
+    And(a=instruction[1] ,b=iszero ,out=zeromatch );
+    And(a=instruction[2] ,b=isnegative ,out=negativematch );
+
+    // getting load calc
+    And(a=greatermatch ,b=zeromatch ,out=match1 );
+    And(a=match1 ,b=negativematch ,out=almostloadcalc );
+
+    Or(a=instruction[0] ,b=instruction[1] ,out=instructioncheck1 );
+    Or(a=instructioncheck1 ,b=instruction[2] ,out=instructioncheck2 );
+
+    Not(in=instructioncheck2 ,out=instructioncheck3 );
+
+    Or(a=instructioncheck3 ,b=almostloadcalc ,out=loadcalc );
+
+
+
+
+    PC(in=pcin ,load=loadcalc ,inc=true ,reset=reset ,out[0..14]=pc ); 
+
+
+
+
+
+
+}
